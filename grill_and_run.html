@@ -171,8 +171,8 @@ function makeLevel2() {
   const pits=[];
   const obs=[];
   for(let i=0;i<7;i++) obs.push({type:'floatie',x:500+i*700,y:GY,w:50,h:28,vx:0,on:true});
-  for(let i=0;i<5;i++)  obs.push({type:'spray',x:900+i*950,y:GY-60,w:20,h:60,t:0,ph:i%2,on:true});
-  for(let i=0;i<6;i++)  obs.push({type:'sandcastle',x:600+i*800,y:GY,w:36,h:40,vx:0,on:true});
+  for(let i=0;i<5;i++) obs.push({type:'beachball',x:800+i*950,y:GY-14,w:28,h:28,vx:-2,bt:i*0.4,on:true});
+  for(let i=0;i<6;i++) obs.push({type:'sandcastle',x:600+i*800,y:GY,w:36,h:40,vx:0,on:true});
   const coll=[];
   for(let i=0;i<13;i++) coll.push({type:'burger',x:340+i*400,y:GY-48,w:30,h:22,got:false});
   return {id:2,name:'The Lake Day',lw,plats,pits,obs,coll,
