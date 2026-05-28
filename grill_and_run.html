@@ -77,7 +77,6 @@ const player = {
     this.y += this.vy;
     this.x += this.vx;
     if (this.x < 40) this.x=40;
-    if (this.x > W-80) this.x=W-80;
 
     this.onGround=false;
     for (const p of plats) {
@@ -96,7 +95,7 @@ const player = {
 
   hit() {
     if (this.inv>0) return false;
-    this.lives--; this.inv=120; return true;
+    this.lives--; this.inv=200; return true;
   },
 
   draw(cx) {
@@ -148,21 +147,14 @@ function makeLevel1() {
     {x:2550,y:GY-90,w:120,h:16,c:'#7ab35c'},{x:3250,y:GY-60,w:100,h:16,c:'#7ab35c'},
     {x:3850,y:GY-80,w:150,h:16,c:'#7ab35c'},
   ];
-  const pits=[{x:800,w:100},{x:1750,w:110},{x:2850,w:100},{x:3650,w:120}];
+  const pits=[];
   const obs=[];
   // Bees
-  for(let i=0;i<12;i++) obs.push({type:'bee',x:350+i*390,y:GY-20,w:24,h:20,vx:-2.5,base:GY-20,t:Math.random()*6.28,on:true});
-  // Frisbees
-  for(let i=0;i<9;i++) obs.push({type:'frisbee',x:500+i*520,y:GY-28,w:32,h:10,vx:-4.5,on:true});
-  // Gnomes & pools
-  for(let i=0;i<10;i++) {
-    const tp=i%2===0?'gnome':'pool';
-    obs.push({type:tp,x:450+i*450,y:GY,w:tp==='pool'?60:28,h:tp==='pool'?24:36,vx:0,on:true});
-  }
+  for(let i=0;i<7;i++) obs.push({type:'bee',x:500+i*650,y:GY-20,w:24,h:20,vx:-1.5,base:GY-20,t:Math.random()*6.28,on:true});
   // Ants
-  for(let i=0;i<6;i++) obs.push({type:'ant',x:850+i*720,y:GY+36,w:20,h:14,vx:-1.5,on:true});
+  for(let i=0;i<4;i++) obs.push({type:'ant',x:1100+i*1050,y:GY+36,w:20,h:14,vx:-1,on:true});
   const coll=[];
-  for(let i=0;i<9;i++) coll.push({type:'hotdog',x:420+i*520,y:GY-44,w:28,h:18,got:false});
+  for(let i=0;i<13;i++) coll.push({type:'hotdog',x:300+i*370,y:GY-44,w:28,h:18,got:false});
   return {id:1,name:'The Suburban Cookout',lw,plats,pits,obs,coll,
     sky:'#87ceeb',end:{x:lw-190,y:GY-30,w:80,h:80}};
 }
@@ -176,14 +168,13 @@ function makeLevel2() {
     {x:2850,y:GY-60,w:100,h:16,c:'#d4b483'},{x:3450,y:GY-90,w:120,h:16,c:'#d4b483'},
     {x:4050,y:GY-60,w:150,h:16,c:'#d4b483'},
   ];
-  const pits=[{x:870,w:100},{x:1950,w:110},{x:3150,w:120},{x:4350,w:100}];
+  const pits=[];
   const obs=[];
-  for(let i=0;i<10;i++) obs.push({type:'floatie',x:420+i*490,y:GY,w:50,h:28,vx:0,on:true});
-  for(let i=0;i<8;i++)  obs.push({type:'beachball',x:620+i*610,y:GY-14,w:28,h:28,vx:-3.5,bt:i*0.4,on:true});
-  for(let i=0;i<7;i++)  obs.push({type:'spray',x:720+i*710,y:GY-60,w:20,h:60,t:0,ph:i%2,on:true});
-  for(let i=0;i<8;i++)  obs.push({type:'sandcastle',x:460+i*610,y:GY,w:36,h:40,vx:0,on:true});
+  for(let i=0;i<7;i++) obs.push({type:'floatie',x:500+i*700,y:GY,w:50,h:28,vx:0,on:true});
+  for(let i=0;i<5;i++)  obs.push({type:'spray',x:900+i*950,y:GY-60,w:20,h:60,t:0,ph:i%2,on:true});
+  for(let i=0;i<6;i++)  obs.push({type:'sandcastle',x:600+i*800,y:GY,w:36,h:40,vx:0,on:true});
   const coll=[];
-  for(let i=0;i<9;i++) coll.push({type:'burger',x:460+i*570,y:GY-48,w:30,h:22,got:false});
+  for(let i=0;i<13;i++) coll.push({type:'burger',x:340+i*400,y:GY-48,w:30,h:22,got:false});
   return {id:2,name:'The Lake Day',lw,plats,pits,obs,coll,
     sky:'#7ec8e3',end:{x:lw-210,y:GY-34,w:90,h:90}};
 }
@@ -191,7 +182,7 @@ function makeLevel2() {
 // ── Game state vars ────────────────────────────────────────
 let lv=null, camX=0;
 
-function startGame() { player.lives=3; score=0; loadLevel(1); }
+function startGame() { player.lives=5; score=0; loadLevel(1); }
 function loadLevel(n) {
   lv = n===1 ? makeLevel1() : makeLevel2();
   player.reset(); camX=0; levelTime=0;
@@ -234,11 +225,11 @@ function updateGame() {
         player.y = player.ducking ? o.y-player.duckH : o.y-48;
         player.vy=0; player.onGround=true;
       } else if (hb.y+hb.h > o.y+8) {
-        if (player.hit()) score=Math.max(0,score-50);
+        if (player.hit()) {}
         if (player.lives<=0) { addScore(score); gameState=STATE.GAME_OVER; return; }
       }
     } else {
-      if (player.hit()) score=Math.max(0,score-50);
+      if (player.hit()) {}
       if (player.lives<=0) { addScore(score); gameState=STATE.GAME_OVER; return; }
     }
   }
@@ -487,8 +478,9 @@ function drawCollectible(c,cx) {
 }
 
 function drawHUD() {
-  ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(0,0,W,44);
-  // Lives
+  // Top bar
+  ctx.fillStyle='rgba(0,0,0,0.65)'; ctx.fillRect(0,0,W,44);
+  // Lives (hearts)
   for(let i=0;i<player.lives;i++) {
     ctx.fillStyle='#e74c3c';
     ctx.beginPath();
@@ -502,6 +494,33 @@ function drawHUD() {
   ctx.fillText(`SCORE: ${score}`, W/2, 28);
   ctx.fillStyle='#74b9ff'; ctx.font='bold 12px "Courier New"'; ctx.textAlign='right';
   ctx.fillText(`LV${lv.id}: ${lv.name.toUpperCase()}`, W-10, 28);
+
+  // Bottom controls bar
+  ctx.fillStyle='rgba(0,0,0,0.75)'; ctx.fillRect(0,H-34,W,34);
+  ctx.strokeStyle='#f1c40f'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,H-34); ctx.lineTo(W,H-34); ctx.stroke();
+
+  const controls=[
+    {key:'← →', desc:'Move'},
+    {key:'↑ / SPACE', desc:'Jump'},
+    {key:'↓', desc:'Duck'},
+    {key:'Food = +1 ❤', desc:''},
+  ];
+  const colW = W / controls.length;
+  controls.forEach((c,i) => {
+    const cx = colW*i + colW/2;
+    // Key label — bright yellow pill
+    const kw = ctx.measureText(c.key).width + 16;
+    ctx.fillStyle='#f1c40f';
+    rr(cx-kw/2, H-28, kw, 18, 4); ctx.fill();
+    ctx.fillStyle='#111'; ctx.font='bold 11px "Courier New"'; ctx.textAlign='center';
+    ctx.fillText(c.key, cx, H-15);
+    // Action description — white text
+    if (c.desc) {
+      ctx.fillStyle='#ffffff'; ctx.font='11px Arial';
+      ctx.fillText(c.desc, cx, H-3);
+    }
+  });
 }
 
 // ── Title ──────────────────────────────────────────────────
