@@ -47,14 +47,24 @@ const player = {
   x:100, y:GY, vx:0, vy:0, w:32, h:48, duckH:28,
   onGround:false, ducking:false, lives:3, inv:0,
   facing:1, animF:0, animT:0,
+  hasSpatula:false, spatulaSwing:0, spatulaCooldown:0,
 
   reset() { this.x=100; this.y=GY; this.vx=0; this.vy=0;
-    this.onGround=false; this.ducking=false; this.inv=0; this.h=48; },
+    this.onGround=false; this.ducking=false; this.inv=0; this.h=48;
+    this.spatulaSwing=0; this.spatulaCooldown=0; },
 
   get hb() {
     return this.ducking
       ? { x:this.x, y:this.y+20, w:this.w, h:this.duckH }
       : { x:this.x, y:this.y,    w:this.w, h:48 };
+  },
+
+  get spatulaHB() {
+    if (this.spatulaSwing <= 0) return null;
+    const sw=40, sh=44;
+    return this.facing===1
+      ? {x:this.x+this.w, y:this.y+2, w:sw, h:sh}
+      : {x:this.x-sw,     y:this.y+2, w:sw, h:sh};
   },
 
   update(plats) {
@@ -88,6 +98,11 @@ const player = {
       }
     }
     if (this.inv>0) this.inv--;
+    if (this.spatulaSwing>0) this.spatulaSwing--;
+    if (this.spatulaCooldown>0) this.spatulaCooldown--;
+    if (pressed('KeyX') && this.hasSpatula && this.spatulaCooldown===0) {
+      this.spatulaSwing=20; this.spatulaCooldown=35;
+    }
     if (this.onGround&&(ml||mr)) {
       if (++this.animT>6) { this.animF=(this.animF+1)%4; this.animT=0; }
     } else this.animF=0;
@@ -119,6 +134,19 @@ const player = {
     } else {
       const lo=Math.sin(this.animF*Math.PI/2)*8;
       ctx.fillRect(-10,dh/2-14,8,14+lo); ctx.fillRect(2,dh/2-14,8,14-lo);
+    }
+    if (this.spatulaSwing>0) {
+      const prog = 1 - this.spatulaSwing/20;
+      const angle = -0.6 + prog*1.2;
+      ctx.save();
+      ctx.rotate(angle);
+      ctx.fillStyle='#8B6914'; ctx.fillRect(14,-3,22,6);
+      ctx.fillStyle='#C0C0C0'; ctx.fillRect(36,-9,13,18);
+      ctx.strokeStyle='#999'; ctx.lineWidth=1; ctx.strokeRect(36,-9,13,18);
+      // slots on head
+      ctx.strokeStyle='#aaa'; ctx.lineWidth=1.5;
+      for(let s=0;s<3;s++) { ctx.beginPath(); ctx.moveTo(38+s*3,-5); ctx.lineTo(38+s*3,5); ctx.stroke(); }
+      ctx.restore();
     }
     ctx.restore();
   }
@@ -155,7 +183,8 @@ function makeLevel1() {
   for(let i=0;i<4;i++) obs.push({type:'ant',x:1100+i*1050,y:GY+36,w:20,h:14,vx:-1,on:true});
   const coll=[];
   for(let i=0;i<13;i++) coll.push({type:'hotdog',x:300+i*370,y:GY-44,w:28,h:18,got:false});
-  return {id:1,name:'The Suburban Cookout',lw,plats,pits,obs,coll,
+  const spatulaPickup={x:990,y:GY-115,w:22,h:36,got:false};
+  return {id:1,name:'The Suburban Cookout',lw,plats,pits,obs,coll,spatulaPickup,
     sky:'#87ceeb',end:{x:lw-190,y:GY-30,w:80,h:80}};
 }
 
@@ -175,14 +204,15 @@ function makeLevel2() {
   for(let i=0;i<6;i++) obs.push({type:'sandcastle',x:600+i*800,y:GY,w:36,h:40,vx:0,on:true});
   const coll=[];
   for(let i=0;i<13;i++) coll.push({type:'burger',x:340+i*400,y:GY-48,w:30,h:22,got:false});
-  return {id:2,name:'The Lake Day',lw,plats,pits,obs,coll,
+  return {id:2,name:'The Lake Day',lw,plats,pits,obs,coll,spatulaPickup:null,
     sky:'#7ec8e3',end:{x:lw-210,y:GY-34,w:90,h:90}};
 }
 
 // ── Game state vars ────────────────────────────────────────
 let lv=null, camX=0;
+let floatingTexts=[];
 
-function startGame() { player.lives=5; score=0; loadLevel(1); }
+function startGame() { player.lives=5; score=0; player.hasSpatula=false; floatingTexts=[]; loadLevel(1); }
 function loadLevel(n) {
   lv = n===1 ? makeLevel1() : makeLevel2();
   player.reset(); camX=0; levelTime=0;
@@ -232,6 +262,32 @@ function updateGame() {
       if (player.hit()) {}
       if (player.lives<=0) { addScore(score); gameState=STATE.GAME_OVER; return; }
     }
+  }
+
+  // Spatula pickup
+  if (lv.spatulaPickup && !lv.spatulaPickup.got) {
+    const hb=player.hb, sp=lv.spatulaPickup;
+    if (overlap(hb.x,hb.y,hb.w,hb.h, sp.x,sp.y,sp.w,sp.h)) {
+      sp.got=true; player.hasSpatula=true;
+    }
+  }
+
+  // Spatula swing hits
+  const shb=player.spatulaHB;
+  if (shb) {
+    for (const o of lv.obs) {
+      if (!o.on) continue;
+      if (overlap(shb.x,shb.y,shb.w,shb.h, o.x,o.y,o.w,o.h)) {
+        o.on=false; score+=150;
+        floatingTexts.push({text:'SMACK!',x:o.x,y:o.y-10,t:60});
+      }
+    }
+  }
+
+  // Floating texts
+  for (let i=floatingTexts.length-1;i>=0;i--) {
+    floatingTexts[i].y-=0.8; floatingTexts[i].t--;
+    if (floatingTexts[i].t<=0) floatingTexts.splice(i,1);
   }
 
   // Collectibles (auto-collect)
@@ -301,7 +357,47 @@ function drawGame() {
     drawCollectible(c,cx);
   }
 
+  // Spatula pickup
+  if (lv.spatulaPickup && !lv.spatulaPickup.got) {
+    const sp=lv.spatulaPickup, sx=sp.x-camX;
+    const bob=Math.sin(levelTime*0.07)*4;
+    ctx.save();
+    ctx.translate(sx+sp.w/2, sp.y+sp.h/2+bob);
+    // glow
+    const grd=ctx.createRadialGradient(0,0,4,0,0,28);
+    grd.addColorStop(0,'rgba(255,200,50,0.55)');
+    grd.addColorStop(1,'rgba(255,200,50,0)');
+    ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(0,0,28,0,Math.PI*2); ctx.fill();
+    // handle
+    ctx.fillStyle='#8B6914'; ctx.fillRect(-3,2,6,18);
+    // head
+    ctx.fillStyle='#C0C0C0'; ctx.fillRect(-7,-14,14,18);
+    ctx.strokeStyle='#999'; ctx.lineWidth=1; ctx.strokeRect(-7,-14,14,18);
+    for(let s=0;s<3;s++) {
+      ctx.strokeStyle='#aaa'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(-3+s*3,-10); ctx.lineTo(-3+s*3,0); ctx.stroke();
+    }
+    ctx.fillStyle='rgba(255,255,255,0.9)'; ctx.font='bold 9px Arial'; ctx.textAlign='center';
+    ctx.fillText('SPATULA',0,sp.h/2+10);
+    ctx.restore();
+  }
+
   player.draw(camX);
+
+  // Floating texts (SMACK! etc.)
+  for (const ft of floatingTexts) {
+    const alpha=Math.min(1, ft.t/20);
+    ctx.save();
+    ctx.globalAlpha=alpha;
+    ctx.font='bold 18px "Courier New"';
+    ctx.textAlign='center';
+    ctx.fillStyle='#FFD700';
+    ctx.strokeStyle='#000'; ctx.lineWidth=3;
+    ctx.strokeText(ft.text, ft.x-camX, ft.y);
+    ctx.fillText(ft.text, ft.x-camX, ft.y);
+    ctx.restore();
+  }
+
   drawHUD();
 }
 
@@ -494,6 +590,20 @@ function drawHUD() {
   ctx.fillText(`SCORE: ${score}`, W/2, 28);
   ctx.fillStyle='#74b9ff'; ctx.font='bold 12px "Courier New"'; ctx.textAlign='right';
   ctx.fillText(`LV${lv.id}: ${lv.name.toUpperCase()}`, W-10, 28);
+
+  // Spatula HUD indicator
+  if (player.hasSpatula) {
+    const pulse = player.spatulaSwing>0 ? 1.2 : 1;
+    ctx.save();
+    ctx.translate(W/2+110, 22);
+    ctx.scale(pulse, pulse);
+    ctx.fillStyle='#8B6914'; ctx.fillRect(-2,2,4,12);
+    ctx.fillStyle='#C0C0C0'; ctx.fillRect(-5,-8,10,12);
+    ctx.strokeStyle='#999'; ctx.lineWidth=1; ctx.strokeRect(-5,-8,10,12);
+    ctx.restore();
+    ctx.fillStyle='#C0C0C0'; ctx.font='bold 10px "Courier New"'; ctx.textAlign='left';
+    ctx.fillText('[X] SPATULA', W/2+120, 27);
+  }
 
   // Bottom controls bar
   ctx.fillStyle='rgba(0,0,0,0.75)'; ctx.fillRect(0,H-34,W,34);
