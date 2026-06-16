@@ -211,20 +211,53 @@ function makeLevel2() {
 // ── Game state vars ────────────────────────────────────────
 let lv=null, camX=0;
 let floatingTexts=[];
+let lasers=[];
 
-function startGame() { player.lives=5; score=0; player.hasSpatula=false; floatingTexts=[]; loadLevel(1); }
+function startGame() { player.lives=5; score=0; player.hasSpatula=false; floatingTexts=[]; lasers=[]; loadLevel(1); }
 function loadLevel(n) {
   lv = n===1 ? makeLevel1() : makeLevel2();
-  player.reset(); camX=0; levelTime=0;
+  player.reset(); camX=0; levelTime=0; lasers=[];
   gameState = n===1 ? STATE.PLAYING_L1 : STATE.PLAYING_L2;
+}
+
+function fireLaser() {
+  const hb = player.hb;
+  lasers.push({
+    x: player.facing===1 ? hb.x+hb.w : hb.x-18,
+    y: hb.y+hb.h/2-3,
+    w: 18,
+    h: 6,
+    vx: player.facing*11,
+    life: 55
+  });
 }
 
 // ── Update gameplay ────────────────────────────────────────
 function updateGame() {
   levelTime++;
   player.update(lv.plats);
+  if (pressed('KeyG')) fireLaser();
 
   camX = Math.max(0, Math.min(player.x-200, lv.lw-W));
+
+  // Laser shots
+  for (let i=lasers.length-1;i>=0;i--) {
+    const l=lasers[i];
+    l.x+=l.vx; l.life--;
+    if (l.life<=0 || l.x<-80 || l.x>lv.lw+80) {
+      lasers.splice(i,1);
+      continue;
+    }
+    for (const o of lv.obs) {
+      if (!o.on || o.type!=='bee') continue;
+      if (overlap(l.x,l.y,l.w,l.h, o.x,o.y,o.w,o.h)) {
+        o.on=false; score+=200;
+        floatingTexts.push({text:'ZAP!',x:o.x+o.w/2,y:o.y-10,t:60});
+        lasers.splice(i,1);
+        break;
+      }
+    }
+  }
 
   // Fall / pits
   for (const pit of lv.pits) {
@@ -344,9 +377,24 @@ function drawGame() {
 
   // Obstacles
   for (const o of lv.obs) {
+    if (!o.on) continue;
     const ox=o.x-camX;
     if (ox+o.w<0||ox>W) continue;
     drawObs(o,ox);
+  }
+
+  // Lasers
+  for (const l of lasers) {
+    const lx=l.x-camX;
+    if (lx+l.w<0||lx>W) continue;
+    ctx.save();
+    ctx.shadowColor='#00f5ff';
+    ctx.shadowBlur=12;
+    ctx.fillStyle='#dffcff';
+    ctx.fillRect(lx,l.y,l.w,l.h);
+    ctx.fillStyle='#00d9ff';
+    ctx.fillRect(lx-8,l.y+2,l.w+16,2);
+    ctx.restore();
   }
 
   // Collectibles
@@ -588,6 +636,8 @@ function drawHUD() {
   }
   ctx.fillStyle='#f1c40f'; ctx.font='bold 16px "Courier New"'; ctx.textAlign='center';
   ctx.fillText(`SCORE: ${score}`, W/2, 28);
+  ctx.fillStyle='#00d9ff'; ctx.font='bold 11px "Courier New"'; ctx.textAlign='left';
+  ctx.fillText('[G] LASER', W/2+112, 16);
   ctx.fillStyle='#74b9ff'; ctx.font='bold 12px "Courier New"'; ctx.textAlign='right';
   ctx.fillText(`LV${lv.id}: ${lv.name.toUpperCase()}`, W-10, 28);
 
